@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Clash</title>
+
+<style>
+*{box-sizing:border-box}
+html,body{
+  margin:0;padding:0;
+  width:100%;height:100%;
+  font-family:sans-serif;
+  background:#f2f2f2;
+  overflow:hidden
+}
+
+/* 슬라이더 */
+#slider{
+  display:flex;
+  width:500vw;
+  height:calc(100vh - 60px);
+  transition:transform .25s ease;
+}
+.page{ width:100vw; padding:16px; overflow-y:auto }
+
+/* 네비 */
+.nav{
+  position:fixed;bottom:0;width:100%;height:60px;
+  display:flex;background:#ddd;border-top:1px solid #bbb;
+}
+.nav button{flex:1;border:none;background:none;font-size:14px;}
+
+/* 박스 */
+.box{background:#fff;border-radius:10px;padding:12px;margin:10px 0;}
+
+/* 카드 */
+.cardlist{display:flex;gap:12px;flex-wrap:wrap;}
+.cardbox{
+  width:90px;text-align:center;cursor:pointer
+}
+.char{
+  width:60px;height:60px;border-radius:50%;margin:0 auto 6px;
+}
+.knight{background:#888;}
+.archer{background:#4caf50;}
+.giant{background:#ff9800;}
+.barbarian{background:#f44336;}
+
+/* 덱 */
+#deck{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+}
+.deckslot{
+  height:100px;border:2px solid #aaa;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;background:#fafafa;cursor:pointer
+}
+.deckslot.empty{border-style:dashed;color:#aaa}
+
+/* 배틀 */
+.center{text-align:center}
+button.full{
+  width:100%;padding:12px;font-size:18px;
+  border:none;background:#2b6cff;color:#fff;
+  border-radius:8px;cursor:pointer;margin-top:16px
+}
+</style>
+</head>
+
+<body>
+
+<div id="slider">
+
+<!-- 0 상점 -->
+<div class="page">
+  <h2>상점</h2>
+  <div class="box">
+    <input id="coupon" placeholder="쿠폰 코드">
+    <button onclick="useCoupon()">확인</button>
+  </div>
+</div>
+
+<!-- 1 카드 -->
+<div class="page">
+  <h2>카드</h2>
+  <div class="box">
+    <div id="deck"></div>
+  </div>
+
+  <div class="box">
+    <div class="cardlist">
+      <div class="cardbox" onclick="toggleCard('기사','knight')">
+        <div class="char knight"></div>기사
+      </div>
+      <div class="cardbox" onclick="toggleCard('아처','archer')">
+        <div class="char archer"></div>아처
+      </div>
+      <div class="cardbox" onclick="toggleCard('자이언트','giant')">
+        <div class="char giant"></div>자이언트
+      </div>
+      <div class="cardbox" id="barbCard" style="display:none"
+           onclick="toggleCard('바바리안','barbarian')">
+        <div class="char barbarian"></div>바바리안
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2 배틀 -->
+<div class="page center">
+  <h2>배틀</h2>
+  <p>이름: <b id="playerName"></b></p>
+  <p>트로피: 🏆 <span id="trophy">0</span></p>
+  <button class="full" onclick="alert('트로피 준비중')">트로피</button>
+  <button class="full" onclick="alert('매칭 준비중')">전투 시작</button>
+</div>
+
+<!-- 3 클랜 -->
+<div class="page">
+  <h2>클랜</h2>
+
+  <div id="clanCreate" class="box">
+    <input id="clanName" placeholder="클랜 이름">
+    <button onclick="createClan()">생성</button>
+  </div>
+
+  <div id="clanInside" style="display:none;">
+    <div class="box">
+      <b>클랜:</b> <span id="currentClanName"></span><br><br>
+      <button onclick="leaveClan()">클랜 나가기</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <b>클랜 목록</b><br><br>
+    <div id="clanList"></div>
+  </div>
+</div>
+
+<!-- 4 토너먼트 -->
+<div class="page">
+  <h2>토너먼트</h2>
+  <div class="box">준비중</div>
+</div>
+
+</div>
+
+<div class="nav">
+  <button onclick="go(0)">상점</button>
+  <button onclick="go(1)">카드</button>
+  <button onclick="go(2)">배틀</button>
+  <button onclick="go(3)">클랜</button>
+  <button onclick="go(4)">토너먼트</button>
+</div>
+
+<script>
+/* 슬라이드 */
+const slider = document.getElementById("slider");
+let currentPage = 1;
+function go(n){
+  currentPage=n;
+  slider.style.transform = `translateX(-${n*100}vw)`;
+}
+go(1);
+
+/* 이름 */
+const playerName =
+  localStorage.getItem("name") || "플레이어";
+document.getElementById("playerName").innerText = playerName;
+
+/* 덱 */
+const deckEl = document.getElementById("deck");
+let deck = JSON.parse(localStorage.getItem("deck") || "[]");
+
+function renderDeck(){
+  deckEl.innerHTML="";
+  for(let i=0;i<8;i++){
+    const slot=document.createElement("div");
+    slot.className="deckslot";
+    if(deck[i]){
+      slot.innerHTML =
+        `<div class="char ${deck[i].color}"></div>${deck[i].name}`;
+      slot.onclick=()=>removeCard(deck[i].name);
+    }else{
+      slot.classList.add("empty");
+      slot.innerText="+";
+    }
+    deckEl.appendChild(slot);
+  }
+}
+
+function toggleCard(name,color){
+  const idx=deck.findIndex(c=>c.name===name);
+  if(idx!==-1) deck.splice(idx,1);
+  else{
+    if(deck.length>=8) return;
+    deck.push({name,color});
+  }
+  localStorage.setItem("deck",JSON.stringify(deck));
+  renderDeck();
+}
+
+function removeCard(name){
+  deck=deck.filter(c=>c.name!==name);
+  localStorage.setItem("deck",JSON.stringify(deck));
+  renderDeck();
+}
+renderDeck();
+
+/* 쿠폰 */
+function useCoupon(){
+  if(coupon.value.trim().toUpperCase()==="BARBARIAN"){
+    barbCard.style.display="block";
+    alert("바바리안 지급");
+  }else{
+    alert("잘못된 코드");
+  }
+}
+
+/* 클랜 */
+let clans = JSON.parse(localStorage.getItem("clans")||"[]");
+let myClan = localStorage.getItem("myClan")||"";
+
+function createClan(){
+  const name = clanName.value.trim();
+  if(!name) return;
+  clans.push(name);
+  localStorage.setItem("clans",JSON.stringify(clans));
+  joinClan(name);
+}
+
+function joinClan(name){
+  myClan=name;
+  localStorage.setItem("myClan",name);
+  renderClan();
+}
+
+function leaveClan(){
+  myClan="";
+  localStorage.removeItem("myClan");
+  renderClan();
+}
+
+function renderClan(){
+  clanList.innerHTML="";
+  clans.forEach(c=>{
+    const d=document.createElement("div");
+    d.className="box";
+    d.innerText=c;
+    d.onclick=()=>joinClan(c);
+    clanList.appendChild(d);
+  });
+
+  if(myClan){
+    clanCreate.style.display="none";
+    clanInside.style.display="block";
+    currentClanName.innerText=myClan;
+  }else{
+    clanCreate.style.display="block";
+    clanInside.style.display="none";
+  }
+}
+renderClan();
+</script>
+
+</body>
+</html>
